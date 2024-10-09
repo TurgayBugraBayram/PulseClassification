@@ -9,7 +9,8 @@ def classification_algo(signal1, signal2, dt):
     selectedCol = [None] * 5
     selectedRow = [None] * 5
 
-    wname = pywt.Wavelet("db4")
+    wname = "db4"
+    # in cwt we can use ['cgau1', 'cgau2', 'cgau3', 'cgau4', 'cgau5', 'cgau6', 'cgau7', 'cgau8', 'cmor', 'fbsp', 'gaus1', 'gaus2', 'gaus3', 'gaus4', 'gaus5', 'gaus6', 'gaus7', 'gaus8', 'mexh', 'morl', 'shan']
     TpMin = 0.25
     TpMax = 15
     numScales = 50
@@ -18,8 +19,10 @@ def classification_algo(signal1, signal2, dt):
     scaleMax = scaleMin + numScales * scaleStep
     scales = np.arange(scaleMin, scaleMax + scaleStep, scaleStep)
 
-    coefs1 = cont_wavelet_trans(signal1, dt, scales, wname)
-    coefs2 = cont_wavelet_trans(signal2, dt, scales, wname)
+    test = pywt.scale2frequency(wname, scales)/dt # module scale2fr fonskiyonu kullanılmış
+
+    coefs1 = np.array(cont_wavelet_trans(signal1, dt, scales, wname))
+    coefs2 = np.array(cont_wavelet_trans(signal2, dt, scales, wname))
 
     maxCoefs = (coefs1 ** 2 + coefs2 ** 2)
 
