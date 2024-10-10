@@ -7,8 +7,8 @@ from make_plot import make_plot
 
 
 def main():
-    filename1 = 'example_1.AT2'
-    filename2 = 'example_2.AT2'
+    filename1 = 'AT2/example_1.AT2'
+    filename2 = 'AT2/example_2.AT2'
 
     print('Starting computations')
 
