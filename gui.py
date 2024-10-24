@@ -1,5 +1,3 @@
-# pip install pandas numpy PyQt5 openpyxl matplotlib
-
 import sys
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -11,28 +9,21 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout
 
 class MatplotlibCanvas(FigureCanvas):
     def __init__(self, parent=None):
-        # Matplotlib figürü
-        self.fig, self.ax = plt.subplots()
+        self.fig, self.ax = plt.subplots(figsize=(6, 4))
         super().__init__(self.fig)
         self.setParent(parent)
-
-    def plot_graph(self, x_data, y_data):
-        # Grafik çizme
-        self.ax.clear()
-        self.ax.plot(x_data, y_data)
-        self.ax.set_title("Matplotlib Graph")
-        self.ax.set_xlabel("X-axis")
-        self.ax.set_ylabel("Y-axis")
-        self.draw()
+        # Grafik stilini ayarla
+        self.fig.set_facecolor('white')
+        self.ax.grid(True, linestyle='--', alpha=0.7)
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
         self.setWindowTitle("Main")
+        self.setGeometry(100, 100, 800, 600)
 
-        # ilk pencere grafik
+        # Canvas'ları oluştur ama plot yapma
         self.canvas1 = MatplotlibCanvas(self)
         self.canvas2 = MatplotlibCanvas(self)
 
@@ -73,7 +64,7 @@ class MainWindow(QMainWindow):
                 self.main_plot()
 
         except Exception as e:
-                QMessageBox.critical(self, "Error", "Hata oluştu: " + str(e))
+            QMessageBox.critical(self, "Error", "Hata oluştu: " + str(e))
 
 
     def main_plot(self):
@@ -91,6 +82,7 @@ class SecondWindow(QWidget):
         super().__init__()
 
         self.setWindowTitle("Second")
+        self.setGeometry(200, 200, 800, 800)
 
         # 2. pencere grafik alanları
         self.acc_graph = MatplotlibCanvas(self)
@@ -106,8 +98,8 @@ class SecondWindow(QWidget):
 
         # 2. pencere layout'u
         layout = QVBoxLayout()
-        layout.addWidget(self.canvas1)
-        layout.addWidget(self.canvas2)
+        layout.addWidget(self.acc_graph)
+        layout.addWidget(self.pulse_graph)
         layout.addWidget(self.acc_pulse_graph)
 
         # 2. pencere butonlar için yatay layout
@@ -130,10 +122,9 @@ class SecondWindow(QWidget):
             folder_path = QFileDialog.getExistingDirectory(self, "Klasör Seçin", "")
 
             if folder_path:
-                self.canvas1.fig.savefig(f"{folder_path}/Acc.png")
-                self.canvas2.fig.savefig(f"{folder_path}/Pulse.png")
-                self.acc_pulse_graph.fig.savefig(f"{folder_path}/Acc-Pulse.png")
-                print(f"Grafikler kaydedildi: {folder_path}/Acc.png, {folder_path}/Pulse.png, {folder_path}/Acc-Pulse.png")
+                self.acc_graph.fig.savefig(f"{folder_path}/Acc.png", bbox_inches='tight', dpi=300)
+                self.pulse_graph.fig.savefig(f"{folder_path}/Pulse.png", bbox_inches='tight', dpi=300)
+                self.acc_pulse_graph.fig.savefig(f"{folder_path}/Acc-Pulse.png", bbox_inches='tight', dpi=300)
                 QMessageBox.information(self, "Success", "Grafikler kaydedildi: " + folder_path)
 
             else:
@@ -143,10 +134,10 @@ class SecondWindow(QWidget):
             QMessageBox.critical(self, "Error", "Hata oluştu: " + str(e))
 
     def save_as_csv(self):
-        options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Excel Files (*.xlsx)", options=options)
-
         try:
+            options = QFileDialog.Options()
+            file_name, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Excel Files (*.xlsx)", options=options)
+
             if file_name:
                 # x ve y parametrelerini al
                 # Örnek veri ile test
