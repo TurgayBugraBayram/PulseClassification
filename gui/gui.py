@@ -12,7 +12,6 @@ class MatplotlibCanvas(FigureCanvas):
         self.fig, self.ax = plt.subplots(figsize=(6, 4))
         super().__init__(self.fig)
         self.setParent(parent)
-        # Grafik stilini ayarla
         self.fig.set_facecolor('white')
         self.ax.grid(True, linestyle='--', alpha=0.7)
 
@@ -53,23 +52,42 @@ class MainWindow(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
 
+        # File paths
+        self.file_paths = []
+
     def browse_files(self):
         try:
             # Dosya seçme window
             options = QFileDialog.Options()
-            file_name, _ = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*);;Text Files (*.txt)",
-                                                       options=options)
-            if file_name:
-                print("Selected file:", file_name)
+            files, _ = QFileDialog.getOpenFileNames(self, "Open AT2 Files", "", "AT2 Files (*.AT2)", options=options)
+
+            if files and len(files) == 2:
+                self.file_paths = files
+                print("Selected files:", self.file_paths)
                 self.main_plot()
+            else:
+                QMessageBox.warning(self, "File Selection", "Please select exactly two AT2 files.")
 
         except Exception as e:
             QMessageBox.critical(self, "Error", "Hata oluştu: " + str(e))
 
-
     def main_plot(self):
-        # main pencere grafik işlemleri
-        pass
+        try:
+            for i, file_path in enumerate(self.file_paths):
+                # Load data from each AT2 file
+                pass
+
+                # Plot data on each canvas
+                canvas = self.canvas1 if i == 0 else self.canvas2
+                canvas.ax.clear()
+                canvas.ax.plot(time_data, accel_data, label=f"File {i+1}")
+                canvas.ax.set_xlabel("Time (sec)")
+                canvas.ax.set_ylabel("Acceleration (g)")
+                canvas.ax.legend()
+                canvas.draw()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", "Error occurred while plotting: " + str(e))
 
     def open_new_window(self):
         # 2. pencereye geçme
@@ -80,7 +98,6 @@ class MainWindow(QMainWindow):
 class SecondWindow(QWidget):
     def __init__(self):
         super().__init__()
-
         self.setWindowTitle("Second")
         self.setGeometry(200, 200, 800, 800)
 
@@ -110,65 +127,49 @@ class SecondWindow(QWidget):
         button_layout.addWidget(self.save_png)
 
         layout.addLayout(button_layout)
-
         self.setLayout(layout)
 
-    def second_plot(self):
-        # ikinci pencere grafik işlemleri
-        pass
+    def save_as_csv(self):
+        try:
+            options = QFileDialog.Options()
+            file_name, _ = QFileDialog.getSaveFileName(self, "Save CSV File", "", "CSV Files (*.csv)", options=options)
+
+            if file_name:
+                # Sample data for CSV, replace with actual computations
+                time_data = np.linspace(0, 10, 100)
+                velocity_data = np.sin(time_data)
+                pulse_data = np.cos(time_data)
+                velocity_pulse_data = velocity_data * pulse_data
+
+                df = pd.DataFrame({
+                    'Time': time_data,
+                    'Velocity (m/s)': velocity_data,
+                    'Pulse (m/s)': pulse_data,
+                    'Velocity-Pulse (m/s)': velocity_pulse_data
+                })
+
+                df.to_csv(file_name, index=False)
+                QMessageBox.information(self, "Success", "CSV file saved successfully at: " + file_name)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", "Error occurred while saving CSV: " + str(e))
 
     def save_graphs(self):
         try:
-            folder_path = QFileDialog.getExistingDirectory(self, "Klasör Seçin", "")
+            folder_path = QFileDialog.getExistingDirectory(self, "Select Folder", "")
 
             if folder_path:
                 self.acc_graph.fig.savefig(f"{folder_path}/Acc.png", bbox_inches='tight', dpi=300)
                 self.pulse_graph.fig.savefig(f"{folder_path}/Pulse.png", bbox_inches='tight', dpi=300)
                 self.acc_pulse_graph.fig.savefig(f"{folder_path}/Acc-Pulse.png", bbox_inches='tight', dpi=300)
-                QMessageBox.information(self, "Success", "Grafikler kaydedildi: " + folder_path)
-
-            else:
-                print("Klasör seçilmedi.")
+                QMessageBox.information(self, "Success", "Graphs saved in: " + folder_path)
 
         except Exception as e:
-            QMessageBox.critical(self, "Error", "Hata oluştu: " + str(e))
-
-    def save_as_csv(self):
-        try:
-            options = QFileDialog.Options()
-            file_name, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Excel Files (*.xlsx)", options=options)
-
-            if file_name:
-                # x ve y parametrelerini al
-                # Örnek veri ile test
-                x_data1 = np.linspace(0, 10, 100)
-                y_data1 = np.sin(x_data1)
-
-                x_data2 = np.linspace(0, 10, 100)
-                y_data2 = np.cos(x_data2)
-
-                x_data3 = np.linspace(0, 10, 100)
-                y_data3 = np.tan(x_data3)
-
-                df1 = pd.DataFrame({'X': x_data1, 'Y': y_data1})
-                df2 = pd.DataFrame({'X': x_data2, 'Y': y_data2})
-                df3 = pd.DataFrame({'X': x_data3, 'Y': y_data3})
-
-                with pd.ExcelWriter(file_name) as writer:
-                    df1.to_excel(writer, sheet_name='Graph1', index=False)
-                    df2.to_excel(writer, sheet_name='Graph2', index=False)
-                    df3.to_excel(writer, sheet_name='Graph3', index=False)
-
-                QMessageBox.information(self, "Success", "Excel dosyası kaydedildi: " + file_name)
-
-        except Exception as e:
-            QMessageBox.critical(self, "Error", "Hata oluştu: " + str(e))
+            QMessageBox.critical(self, "Error", "Error occurred while saving graphs: " + str(e))
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-
     window = MainWindow()
     window.show()
-
     sys.exit(app.exec_())
