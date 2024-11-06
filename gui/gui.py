@@ -5,7 +5,9 @@ import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QHBoxLayout,
                              QFileDialog, QMessageBox, QLabel)
+from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt
+import re
 
 
 class MatplotlibCanvas(FigureCanvas):
@@ -31,6 +33,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Pulse Classification")
         self.setGeometry(100, 100, 1000, 800)  # Pencere boyutunu artır
+        icon = QIcon("aybu_icon.png")
+        app.setWindowIcon(icon)
 
         # Canvas'ları oluştur
         self.canvas1 = MatplotlibCanvas(self)
@@ -86,17 +90,39 @@ class MainWindow(QMainWindow):
 
     def main_plot(self):
         try:
-            time_data = np.linspace(0, 10, 100)
-            accel_data = np.sin(time_data)
-
             for i, file_path in enumerate(self.file_paths):
+                # Dosyayı satır satır oku
+                with open(file_path, 'r') as file:
+                    lines = file.readlines()
+
+                # NPTS ve DT değerlerini al
+                npts_line = lines[3]
+                npts_match = re.search(r'NPTS=\s*(\d+)', npts_line)
+                dt_match = re.search(r'DT=\s*([\d.]+)', npts_line)
+                if npts_match and dt_match:
+                    npts = int(npts_match.group(1))
+                    dt = float(dt_match.group(1))
+                else:
+                    QMessageBox.critical(self, "Error", f"Could not find NPTS and DT in file: {file_path}")
+                    return
+
+                # Zaman ekseni
+                time_data = np.linspace(0, (npts - 1) * dt, npts)
+
+                accel_data = []
+
+                # Acceleration verileri
+                for line in lines[4:]:
+                    accel_data.extend(map(float, line.split()))
+
+                # Grafiği çiz
                 canvas = self.canvas1 if i == 0 else self.canvas2
                 canvas.ax.clear()
-                canvas.ax.plot(time_data, accel_data, label=f"File {i + 1}")
+                canvas.ax.plot(time_data, accel_data, label=f"File {file_path.split('/')[-1]}")
                 canvas.ax.set_xlabel("Time (sec)", fontsize=10)
                 canvas.ax.set_ylabel("Acceleration (g)", fontsize=10)
                 canvas.ax.legend()
-                canvas.fig.tight_layout()  # Her plot için tight_layout uygula
+                canvas.fig.tight_layout()
                 canvas.draw()
 
         except Exception as e:
