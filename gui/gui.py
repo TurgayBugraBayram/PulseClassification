@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QHBoxLayout,
-                             QFileDialog, QMessageBox, QLabel)
+                             QFileDialog, QMessageBox, QLabel, QSlider, QDesktopWidget)
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt
 import re
@@ -12,7 +13,7 @@ import re
 
 class MatplotlibCanvas(FigureCanvas):
     def __init__(self, parent=None):
-        # Figure boyutlarını artır
+        # Grafik boyutlarını ayarla
         self.fig, self.ax = plt.subplots(figsize=(8, 5))
         super().__init__(self.fig)
         self.setParent(parent)
@@ -20,32 +21,40 @@ class MatplotlibCanvas(FigureCanvas):
         # Grafik ayarları
         self.fig.set_facecolor('white')
         self.ax.grid(True, linestyle='--', alpha=0.7)
-        self.ax.set_xlabel("Time (sec)", fontsize=10)
-        self.ax.set_ylabel("Acceleration (g)", fontsize=10)
         self.ax.tick_params(axis='both', which='major', labelsize=8)
-
-        # Kenar boşluklarını ayarla
-        self.fig.tight_layout(pad=2.5)
+        self.fig.tight_layout(pad=3.5)
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Pulse Classification")
-        self.setGeometry(100, 100, 1000, 800)  # Pencere boyutunu artır
+        self.setGeometry(100, 100, 1000, 800)
         icon = QIcon("aybu_icon.png")
         app.setWindowIcon(icon)
 
-        # Canvas'ları oluştur
-        self.canvas1 = MatplotlibCanvas(self)
-        self.canvas2 = MatplotlibCanvas(self)
+        # Ekran ve pencere konumlandırması
+        screen = QDesktopWidget().screenGeometry()
+        screen_width, screen_height = screen.width(), screen.height()
+        window_width, window_height = self.frameGeometry().width(), self.frameGeometry().height()
+        self.move((screen_width - window_width) // 2, (screen_height - window_height) // 2)
 
-        # Dosya yolunu göstermek için etiket
+        # Canvas'ları ve toolbar'ları oluştur
+        self.acc_time_1 = MatplotlibCanvas(self)
+        self.acc_time_2 = MatplotlibCanvas(self)
+        self.toolbar_1 = NavigationToolbar(self.acc_time_1, self)
+        self.toolbar_2 = NavigationToolbar(self.acc_time_2, self)
+
+        self.acc_time_1.ax.set_xlabel("Time (sec)", fontsize=10)
+        self.acc_time_1.ax.set_ylabel("Acceleration (g)", fontsize=10)
+        self.acc_time_2.ax.set_xlabel("Time (sec)", fontsize=10)
+        self.acc_time_2.ax.set_ylabel("Acceleration (g)", fontsize=10)
+
+        # Dosya yolu etiketi ve düğmeler
         self.label_files = QLabel("No files selected")
         self.label_files.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.label_files.setStyleSheet("color: gray; font-size: 12px;")
 
-        # Düğmeleri oluştur
         self.browse_button = QPushButton("Browse AT2 Files")
         self.browse_button.clicked.connect(self.browse_files)
         self.browse_button.setStyleSheet("padding: 10px; font-size: 12px; color: white; background-color: #1E90FF;")
@@ -55,12 +64,20 @@ class MainWindow(QMainWindow):
         self.open_window_button.setStyleSheet(
             "padding: 10px; font-size: 12px; color: white; background-color: #32CD32;")
 
+        #kaydırma çubuğu
+        self.time_slider = QSlider(Qt.Horizontal)
+        self.time_slider.setRange(1, 100)
+        self.time_slider.setValue(100)
+        self.time_slider.valueChanged.connect(self.update_time_axis)
+
         # Ana pencere layout
         layout = QVBoxLayout()
         layout.addWidget(self.label_files)
-        layout.addWidget(self.canvas1)
-        layout.addSpacing(20)  # Boşluğu artır
-        layout.addWidget(self.canvas2)
+        layout.addWidget(self.toolbar_1)
+        layout.addWidget(self.acc_time_1)
+        layout.addWidget(self.toolbar_2)
+        layout.addWidget(self.acc_time_2)
+        layout.addWidget(self.time_slider)
 
         # butonlar için yatay layout
         button_layout = QHBoxLayout()
@@ -76,6 +93,7 @@ class MainWindow(QMainWindow):
 
         # Dosya yolları
         self.file_paths = []
+        self.time_data = []  # Store time data for each graph
 
     def browse_files(self):
         options = QFileDialog.Options()
@@ -90,6 +108,7 @@ class MainWindow(QMainWindow):
 
     def main_plot(self):
         try:
+            self.time_data = []  # Reset time data for each plot
             for i, file_path in enumerate(self.file_paths):
                 # Dosyayı satır satır oku
                 with open(file_path, 'r') as file:
@@ -108,6 +127,7 @@ class MainWindow(QMainWindow):
 
                 # Zaman ekseni
                 time_data = np.linspace(0, (npts - 1) * dt, npts)
+                self.time_data.append(time_data)  # Store time data for each plot
 
                 accel_data = []
 
@@ -116,17 +136,34 @@ class MainWindow(QMainWindow):
                     accel_data.extend(map(float, line.split()))
 
                 # Grafiği çiz
-                canvas = self.canvas1 if i == 0 else self.canvas2
+                canvas = self.acc_time_1 if i == 0 else self.acc_time_2
                 canvas.ax.clear()
                 canvas.ax.plot(time_data, accel_data, label=f"File {file_path.split('/')[-1]}")
                 canvas.ax.set_xlabel("Time (sec)", fontsize=10)
                 canvas.ax.set_ylabel("Acceleration (g)", fontsize=10)
                 canvas.ax.legend()
+                canvas.ax.grid(True, linestyle='--', alpha=0.7)
+
                 canvas.fig.tight_layout()
                 canvas.draw()
 
         except Exception as e:
             QMessageBox.critical(self, "Error", "Error occurred while plotting: " + str(e))
+
+    def update_time_axis(self, value):
+        for i, canvas in enumerate([self.acc_time_1, self.acc_time_2]):
+            if self.time_data:
+                max_time = self.time_data[i][-1] * (value / 100)
+                canvas.ax.set_xlim(0, max_time)
+                canvas.draw()
+
+    def on_plot_hover(self, event):
+        """
+        The mouse event that occurs when the user hovers over the plot.
+        """
+        if event.inaxes:
+            x, y = event.xdata, event.ydata
+            QMessageBox.information(self, "Data Point", f"Time: {x:.2f} sec, Acceleration: {y:.2f} g")
 
     def open_new_window(self):
         self.new_window = SecondWindow()
@@ -137,12 +174,30 @@ class SecondWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Calculate Pulse")
-        self.setGeometry(200, 200, 1000, 1000)  # Pencere boyutunu artır
+        self.setGeometry(200, 200, 1000, 1000)
+
+        screen = QDesktopWidget().screenGeometry()
+        screen_width, screen_height = screen.width(), screen.height()
+        window_width, window_height = self.frameGeometry().width(), self.frameGeometry().height()
+        self.move((screen_width - window_width) // 2, (screen_height - window_height) // 2)
 
         # Canvas
         self.acc_graph = MatplotlibCanvas(self)
         self.pulse_graph = MatplotlibCanvas(self)
         self.acc_pulse_graph = MatplotlibCanvas(self)
+
+        self.acc_graph_toolbar = NavigationToolbar(self.acc_graph, self)
+        self.pulse_graph_toolbar = NavigationToolbar(self.pulse_graph, self)
+        self.acc_pulse_graph_toolbar = NavigationToolbar(self.acc_pulse_graph, self)
+
+        self.acc_graph.ax.set_xlabel("Time (sec)", fontsize=10)
+        self.acc_graph.ax.set_ylabel("Acceleration (g)", fontsize=10)
+
+        self.pulse_graph.ax.set_xlabel("Time (sec)", fontsize=10)
+        self.pulse_graph.ax.set_ylabel("Pulse (m/s)", fontsize=10)
+
+        self.acc_pulse_graph.ax.set_xlabel("Time (sec)", fontsize=10)
+        self.acc_pulse_graph.ax.set_ylabel("Acceleration-Pulse (m/s)", fontsize=10)
 
         # 2. pencere butonlar
         self.save_csv = QPushButton("Save as CSV")
@@ -155,10 +210,11 @@ class SecondWindow(QWidget):
 
         # 2. pencere layout'u
         layout = QVBoxLayout()
+        layout.addWidget(self.acc_graph_toolbar)
         layout.addWidget(self.acc_graph)
-        layout.addSpacing(20)  # Boşlukları artır
+        layout.addWidget(self.pulse_graph_toolbar)
         layout.addWidget(self.pulse_graph)
-        layout.addSpacing(20)
+        layout.addWidget(self.acc_pulse_graph_toolbar)
         layout.addWidget(self.acc_pulse_graph)
 
         # 2. pencere butonlar için yatay layout
